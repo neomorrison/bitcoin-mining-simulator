@@ -274,29 +274,63 @@ body {
 @keyframes armed-pulse { 50% { box-shadow: 0 0 26px rgb(255 106 26 / 0.6); } }
 .fork-btn:disabled { opacity: 0.4; }
 
-/* Mempool spam windows */
-.spam {
-  position: fixed; z-index: 70; width: 250px;
-  border: 1px solid #7a7a7a; border-radius: 8px 8px 0 0; overflow: hidden;
-  background: #d6d2c8; color: #16130e; box-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
-  animation: spam-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  resize: none;
+/* Ransomware windows */
+.ransom {
+  position: fixed; z-index: 70; width: 270px;
+  border: 1px solid #ff3b3b; border-radius: 6px; overflow: hidden;
+  background: #0c0505; color: #ffb3b3; box-shadow: 0 0 34px rgb(255 59 59 / 0.28), 0 14px 40px rgb(0 0 0 / 0.6);
+  animation: ransom-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes spam-in { from { opacity: 0; transform: translateY(-16px) scale(0.92); } }
-.spam-bar {
+@keyframes ransom-in { from { opacity: 0; transform: translateY(-14px) scale(0.94); } }
+.ransom-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  background: linear-gradient(180deg, #2a63b8, #1a3f8a); color: #fff;
-  padding: 5px 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  background: #200606; border-bottom: 1px solid #571414;
+  padding: 6px 9px; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: #ff6a6a;
 }
-.spam-bar button { background: #c8c2b4; border: 1px solid #6b665c; border-radius: 3px; width: 18px; height: 16px; font-size: 9px; line-height: 1; color: #16130e; }
-.spam-body { padding: 12px; font-size: 12px; line-height: 1.5; }
-.spam-body .spam-hex { font-family: var(--mono); font-size: 10px; color: #4a463c; margin-top: 6px; word-break: break-all; }
-.spam-claim {
-  width: calc(100% - 20px); margin: 4px 10px 12px; min-height: 32px;
-  border: 1px solid #16130e; border-radius: 4px; background: #c8f24a; color: #101308;
+.ransom-bar button { background: #2a0a0a; border: 1px solid #571414; border-radius: 3px; width: 18px; height: 16px; font-size: 9px; line-height: 1; color: #ff8f8f; }
+.ransom-body { padding: 12px; font-size: 12px; line-height: 1.5; }
+.ransom-body pre {
+  margin: 8px 0 0; font-family: var(--mono); font-size: 9px; color: #6b2a2a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ransom-claim {
+  width: calc(100% - 20px); margin: 4px 10px 12px; min-height: 34px;
+  border: 1px solid #ffb84d; border-radius: 4px; background: #ffb84d; color: #1c0f00;
   font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
 }
-.spam-claim:active { transform: scale(0.98); }
+.ransom-claim:active { transform: scale(0.98); }
+
+/* Difficulty stamp */
+.stamp {
+  position: fixed; z-index: 66; pointer-events: none;
+  font-family: var(--mono); font-weight: 700; font-size: 22px; letter-spacing: 0.08em;
+  padding: 10px 18px; border: 3px solid; border-radius: 6px; transform: rotate(-4deg);
+  animation: stamp-slam 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.stamp small { display: block; font-size: 10px; font-weight: 400; letter-spacing: 0.04em; margin-top: 3px; opacity: 0.85; }
+.stamp.up { color: var(--hash); border-color: var(--hash); background: rgb(16 19 8 / 0.88); box-shadow: 0 0 26px rgb(200 242 74 / 0.25); }
+.stamp.down { color: var(--cyan); border-color: var(--cyan); background: rgb(8 15 19 / 0.88); box-shadow: 0 0 26px rgb(62 200 232 / 0.25); }
+@keyframes stamp-slam {
+  0% { opacity: 0; transform: rotate(-4deg) scale(2.4); }
+  12% { opacity: 1; transform: rotate(-4deg) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(-4deg) scale(0.96); }
+}
+
+/* Whale alert */
+.whale {
+  position: fixed; left: 0; right: 0; top: 84px; z-index: 64; pointer-events: none;
+  font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.04em;
+  color: #dceeff; background: linear-gradient(90deg, transparent, rgb(10 22 32 / 0.92) 12% 88%, transparent);
+  padding: 10px 0; text-align: center; white-space: nowrap; overflow: hidden;
+  animation: whale-swim 6.2s linear forwards;
+}
+@keyframes whale-swim {
+  0% { transform: translateX(100vw); }
+  12% { transform: translateX(0); }
+  82% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-12vw); opacity: 0; }
+}
 
 /* Footer */
 footer {
@@ -310,31 +344,37 @@ footer {
 #fx { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
 #root { position: relative; z-index: 1; }
 
-.fx-crt::before {
+.fx-terminal::before {
   content: ""; position: fixed; inset: 0; z-index: 42; pointer-events: none;
   background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.1) 0 1px, transparent 2px 4px);
   animation: crt-flicker 4s steps(30) infinite;
 }
 @keyframes crt-flicker { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.65; } }
-.fx-chroma #root { animation: chroma-shift 2.2s ease-in-out infinite; }
-@keyframes chroma-shift {
+.fx-shimmer .hero { animation: shimmer-warp 3.2s ease-in-out infinite; }
+@keyframes shimmer-warp {
   0%, 100% { filter: none; }
-  50% { filter: drop-shadow(-2px 0 rgb(62 200 232 / 0.55)) drop-shadow(2px 0 rgb(255 106 26 / 0.55)); }
+  50% { filter: hue-rotate(8deg) saturate(1.25) brightness(1.06); }
 }
-.fx-strobe .hero { animation: strobe-farm 0.3s steps(2) infinite; }
-@keyframes strobe-farm { 50% { filter: brightness(1.3) saturate(1.35); } }
+.fx-shimmer .strike-btn { animation: shimmer-ring 3.2s ease-in-out infinite; }
+@keyframes shimmer-ring {
+  0%, 100% { box-shadow: 0 0 44px rgb(200 242 74 / 0.35), inset 0 -12px 24px rgb(0 0 0 / 0.25); }
+  50% { box-shadow: -3px 0 44px rgb(62 200 232 / 0.4), 3px 0 44px rgb(255 106 26 / 0.4), inset 0 -12px 24px rgb(0 0 0 / 0.25); }
+}
+.fx-glow .strike-btn { animation: glow-pulse 0.45s ease-in-out infinite; }
+@keyframes glow-pulse {
+  50% { box-shadow: 0 0 90px rgb(255 200 80 / 0.75), 0 0 34px rgb(200 242 74 / 0.8), inset 0 -12px 24px rgb(0 0 0 / 0.25); }
+}
 .fx-worm::after {
   content: ""; position: fixed; inset: 0; z-index: 42; pointer-events: none;
   box-shadow: inset 0 0 160px rgb(3 4 5 / 0.92);
   animation: worm-breathe 3.5s ease-in-out infinite;
 }
 @keyframes worm-breathe { 50% { box-shadow: inset 0 0 210px rgb(62 200 232 / 0.28); } }
-.fx-ocean #root { animation: ocean-dream 9s ease-in-out infinite; }
-@keyframes ocean-dream {
-  0%, 100% { filter: hue-rotate(150deg) saturate(0.55) brightness(0.9); }
-  50% { filter: hue-rotate(170deg) saturate(0.45) brightness(0.95); }
+.fx-lastsat { filter: sepia(0.28) saturate(1.15) brightness(1.03) hue-rotate(-8deg); }
+.fx-lastsat::after {
+  content: ""; position: fixed; inset: 0; z-index: 42; pointer-events: none;
+  box-shadow: inset 0 0 190px rgb(120 90 30 / 0.4);
 }
-.fx-heat::before { content: none; }
 .fx-heat .hero { animation: heat-glow 0.7s ease-in-out infinite; }
 @keyframes heat-glow { 50% { filter: brightness(1.14) saturate(1.2); } }
 
