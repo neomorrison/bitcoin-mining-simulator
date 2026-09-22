@@ -2,19 +2,154 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Hash Forge — a bitcoin mining clicker. Strike the block, unlock auto-hash drones, and spend stimulation on chaos." />
-    <meta name="theme-color" content="#08090a" />
-    <title>Hash Forge — Bitcoin Mining Clicker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Hash Forge: a bitcoin mining clicker. Strike the coin, build a mining empire from a garage CPU to a Dyson swarm, catch golden nonces and hard fork for keys." />
+    <meta name="theme-color" content="#07080a" />
+    <meta property="og:title" content="Hash Forge: Bitcoin Mining Clicker" />
+    <meta property="og:image" content="./og.jpg" />
+    <title>Hash Forge</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
+    <canvas id="bgfx" aria-hidden="true"></canvas>
     <canvas id="fx" aria-hidden="true"></canvas>
-    <div id="root"></div>
+
+    <div class="app" id="app">
+      <!-- ============ TOP BAR ============ -->
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">₿</span>
+          <span class="brand-name">Hash<b>Forge</b></span>
+        </div>
+
+        <div class="wallet">
+          <div class="wallet-main">
+            <strong id="balance">0</strong><span class="unit">sats</span>
+          </div>
+          <div class="wallet-sub"><span id="sps">0</span>/s <span class="dot">·</span> <span id="btc">₿ 0.00000000</span></div>
+        </div>
+
+        <div class="top-actions">
+          <div class="pill pill-stim" title="Stimulation: spend it on Mods"><i data-icon="sparkle"></i><span id="stim">0</span></div>
+          <div class="pill pill-key" title="Fork keys: spend them on Genesis perks"><i data-icon="key"></i><span id="keys">0</span></div>
+          <button class="icon-btn" id="muteBtn" type="button" aria-label="Toggle sound"><i data-icon="volume"></i></button>
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings"><i data-icon="gear"></i></button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <!-- ============ LEFT: MINING CORE ============ -->
+        <section class="core-col" aria-label="Mining core">
+          <div class="core-card" id="coreCard">
+            <div class="core-shake" id="coreShake">
+              <div class="core-head">
+                <div class="hash-display" id="hashDisplay">00000000</div>
+                <div class="block-odds"><span id="blockOdds">3%</span> block odds</div>
+              </div>
+
+              <div class="coin-stage">
+                <div class="coin-halo"></div>
+                <button class="coin" id="coin" type="button" aria-label="Strike the coin">
+                  <span class="coin-rim"></span>
+                  <span class="coin-glyph">₿</span>
+                </button>
+              </div>
+
+              <div class="core-meta">
+                <div class="per-strike"><b id="clickPower">+1</b> per strike</div>
+                <div class="combo">
+                  <div class="combo-line"><span>Combo</span><b id="combo">×0</b></div>
+                  <div class="combo-bar"><span id="comboBar"></span></div>
+                </div>
+              </div>
+
+              <div class="buffs" id="buffs"></div>
+            </div>
+          </div>
+
+          <div class="abilities" id="abilities"></div>
+
+          <div class="goal-card" id="goalCard"></div>
+
+          <div class="ticker"><span class="ticker-tag">NEWS</span><span id="news">Boot complete. Strike the coin to mine.</span></div>
+        </section>
+
+        <!-- ============ RIGHT: SHOP ============ -->
+        <section class="shop-col" aria-label="Shop">
+          <nav class="tabs" id="tabs" role="tablist">
+            <button type="button" role="tab" data-tab="rigs" class="active"><i data-icon="server"></i><span>Rigs</span></button>
+            <button type="button" role="tab" data-tab="upgrades"><i data-icon="chip"></i><span>Upgrades</span><em class="badge" id="badge-upgrades"></em></button>
+            <button type="button" role="tab" data-tab="mods"><i data-icon="sparkle"></i><span>Mods</span><em class="badge" id="badge-mods"></em></button>
+            <button type="button" role="tab" data-tab="fork"><i data-icon="fork"></i><span>Fork</span><em class="badge" id="badge-fork"></em></button>
+            <button type="button" role="tab" data-tab="trophies"><i data-icon="trophy"></i><span>Trophies</span></button>
+            <button type="button" role="tab" data-tab="stats"><i data-icon="chart"></i><span>Stats</span></button>
+          </nav>
+
+          <div class="tab-body">
+            <div class="pane active" data-pane="rigs">
+              <div class="pane-bar">
+                <div class="seg" id="buySeg">
+                  <button type="button" data-buy-amt="1">×1</button>
+                  <button type="button" data-buy-amt="10">×10</button>
+                  <button type="button" data-buy-amt="100">×100</button>
+                  <button type="button" data-buy-amt="max">Max</button>
+                </div>
+                <div class="pane-note" id="rigNote">0 rigs</div>
+              </div>
+              <div class="rig-list" id="rigList"></div>
+            </div>
+
+            <div class="pane" data-pane="upgrades">
+              <div class="pane-bar">
+                <div class="pane-title">Available</div>
+                <button type="button" class="btn-ghost" id="buyAllBtn">Buy all affordable</button>
+              </div>
+              <div class="up-list" id="upList"></div>
+              <div class="pane-title sub">Installed <span id="ownedCount"></span></div>
+              <div class="owned-grid" id="ownedGrid"></div>
+            </div>
+
+            <div class="pane" data-pane="mods">
+              <div class="intro">
+                <p>Every strike, block and golden nonce earns <b class="c-cyan">stimulation</b>. Spend it on mods: each one adds a bonus and a little chaos. Mods survive hard forks. Turn any visual off without losing its bonus.</p>
+              </div>
+              <div class="mod-grid" id="modGrid"></div>
+            </div>
+
+            <div class="pane" data-pane="fork">
+              <div class="fork-hero" id="forkHero"></div>
+              <div class="pane-title sub">Genesis perks <span class="pane-note">permanent, bought with keys</span></div>
+              <div class="perk-grid" id="perkGrid"></div>
+            </div>
+
+            <div class="pane" data-pane="trophies">
+              <div class="pane-bar">
+                <div class="pane-title" id="trophyTitle">Trophies</div>
+                <div class="pane-note">each one adds +1% to everything</div>
+              </div>
+              <div class="trophy-grid" id="trophyGrid"></div>
+            </div>
+
+            <div class="pane" data-pane="stats">
+              <div class="stats-grid" id="statsGrid"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="drop-layer" id="dropLayer"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <!-- ============ MODAL ============ -->
+    <div class="modal-back" id="modalBack" hidden>
+      <div class="modal" role="dialog" aria-modal="true" id="modal"></div>
+    </div>
+
     <script src="./src/main.js"></script>
   </body>
 </html>
