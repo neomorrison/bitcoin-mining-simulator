@@ -150,6 +150,14 @@ kbd { font-family: var(--mono); }
   transform: rotate(14deg) translateY(-2px);
   text-shadow: 0 3px 0 #b85f00, 0 6px 14px rgb(80 30 0 / 0.45);
 }
+.coin-hint {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--fg);
+  padding: 5px 10px; border-radius: 999px; background: rgb(7 8 10 / 0.75); border: 1px solid rgb(247 147 26 / 0.45);
+  animation: hint-bob 1.4s ease-in-out infinite;
+}
+@keyframes hint-bob { 50% { transform: translateX(-50%) translateY(-4px); } }
+@media (hover: none) { .coin-hint { font-size: 0; } .coin-hint::after { content: "Tap the coin to mine"; font-size: 11px; } }
 .core-card.hot .coin { box-shadow: 0 0 0 6px rgb(247 147 26 / 0.25), 0 18px 60px rgb(247 147 26 / 0.45), 0 10px 24px rgb(0 0 0 / 0.5), inset 0 -10px 22px rgb(90 40 0 / 0.45), inset 0 8px 18px rgb(255 240 210 / 0.55); }
 .core-card.glow .coin { animation: coin-glow 0.6s ease-in-out infinite; }
 .core-card.glow .coin.press { animation: coin-press 0.14s ease-out; }
@@ -162,6 +170,8 @@ kbd { font-family: var(--mono); }
 .combo-line { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 6px; }
 .combo-line b { color: var(--hash); font-weight: 600; white-space: pre; }
 .combo-bar { height: 6px; border-radius: 6px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
+.combo-time { height: 2px; margin-top: 3px; border-radius: 2px; overflow: hidden; }
+.combo-time i { display: block; height: 100%; background: rgb(241 236 226 / 0.35); transform-origin: left; transform: scaleX(0); }
 .combo-bar span { display: block; height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, var(--cyan), var(--hash) 60%, var(--btc)); transition: width 0.12s; }
 
 .buffs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
@@ -199,7 +209,7 @@ kbd { font-family: var(--mono); }
 }
 
 /* abilities */
-.abilities { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex: none; }
+.abilities { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; flex: none; }
 .ability {
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 12px 6px 10px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface);
@@ -209,7 +219,7 @@ kbd { font-family: var(--mono); }
 .ability:active { transform: scale(0.96); }
 .ab-ring { position: absolute; inset: 0; background: rgb(0 0 0 / 0.55); transform-origin: bottom; transform: scaleY(var(--cd)); transition: transform 0.2s linear; pointer-events: none; }
 .ab-ico { position: relative; width: 22px; height: 22px; color: var(--muted); }
-.ab-name { position: relative; font-size: 12px; font-weight: 600; }
+.ab-name { position: relative; font-size: 12px; font-weight: 600; max-width: 100%; overflow-wrap: anywhere; }
 .ab-state { position: relative; font-family: var(--mono); font-size: 9.5px; color: var(--subtle); line-height: 1.25; min-height: 24px; display: grid; place-items: center; }
 .ability kbd { position: absolute; top: 5px; right: 6px; font-size: 9px; color: var(--subtle); }
 .ability.ready { border-color: rgb(247 147 26 / 0.45); background: linear-gradient(180deg, rgb(247 147 26 / 0.1), var(--surface)); }
@@ -292,6 +302,8 @@ kbd { font-family: var(--mono); }
 .rig.can:hover { border-color: rgb(247 147 26 / 0.6); background: var(--surface-2); }
 .rig:active { transform: scale(0.99); }
 .rig.hidden, .rig-teaser.hidden { display: none; }
+.rig.can.fresh { animation: fresh-pulse 1.6s ease-in-out infinite; }
+@keyframes fresh-pulse { 50% { border-color: var(--btc); box-shadow: 0 0 0 3px rgb(247 147 26 / 0.12); } }
 .rig.bought { animation: bought 0.35s ease; }
 @keyframes bought { 30% { background: rgb(247 147 26 / 0.14); border-color: var(--btc); } }
 .rig-art { width: 60px; height: 60px; border-radius: 12px; background: var(--paper); overflow: hidden; display: grid; place-items: center; }
@@ -427,7 +439,7 @@ kbd { font-family: var(--mono); }
 }
 .gold-drop img { width: 100%; height: 100%; pointer-events: none; animation: drop-spin 3s ease-in-out infinite; }
 .gold-drop:hover { filter: drop-shadow(0 0 26px rgb(255 209 102 1)); }
-.gold-drop.gone { animation: drop-out 0.4s ease forwards; }
+.gold-drop.gone { animation: drop-out 0.4s ease forwards; pointer-events: none; }
 @keyframes drop-in { from { transform: scale(0) rotate(-40deg); } }
 @keyframes drop-bob { 50% { translate: 0 -10px; } }
 @keyframes drop-spin { 0%, 100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(8deg) scale(1.06); } }
@@ -562,7 +574,7 @@ body.forking .app { animation: forking 1.2s ease; }
   .top-actions { gap: 6px; }
   .top-actions .icon-btn { width: 32px; height: 32px; }
   #muteBtn { display: none; }
-  .layout { grid-template-columns: 1fr; padding: 12px 16px 24px; gap: 12px; }
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 24px; gap: 12px; }
   .core-col { display: contents; }
   .core-card { order: 1; }
   .abilities { order: 2; }

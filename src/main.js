@@ -125,10 +125,10 @@ const MODS = [
   { id: "stamp", name: "Difficulty Stamps", desc: "A retarget slams down every 25s and pays 20s of production.", cost: 400, icon: "stamp" },
   { id: "terminal", name: "Retro Terminal", desc: "Scanlines over everything. +8% strike power.", cost: 650, icon: "monitor", click: 0.08 },
   { id: "whale", name: "Whale Alerts", desc: "A whale swims by about once a minute. Each pays 45s of production.", cost: 1000, icon: "waves" },
-  { id: "glow", name: "Overclock Glow", desc: "The coin burns hot on long combos. Combo cap 30 → 40.", cost: 1500, icon: "flame" },
+  { id: "glow", name: "Overclock Glow", desc: "The coin burns hot on long combos. Each combo stack gives +4% instead of +3%.", cost: 1500, icon: "flame" },
   { id: "ransom", name: "Ransomware", desc: "Fake lockers pop up. Sweep their wallet for 2 min of production.", cost: 2400, icon: "lock" },
   { id: "worm", name: "Mempool Wormhole", desc: "A warp vignette around the bay. +10% production.", cost: 4000, icon: "orbit", prod: 0.1 },
-  { id: "swarm", name: "Drone Swarm", desc: "Drones orbit the coin and strike it 3× per second.", cost: 7000, icon: "drone" },
+  { id: "swarm", name: "Drone Swarm", desc: "Drones orbit the coin and strike it 3× per second at half power.", cost: 7000, icon: "drone" },
 ];
 
 const ABILITIES = [
@@ -160,7 +160,7 @@ const PERKS = [
   { id: "hour", name: "Golden Hour", desc: "Golden nonce effects last 50% longer.", cost: 10, icon: "clock" },
   { id: "twin", name: "Twin Hash", desc: "+3% block odds.", cost: 15, icon: "block" },
   { id: "nitrogen", name: "Liquid Nitrogen", desc: "Ability cooldowns −25%.", cost: 25, icon: "snow" },
-  { id: "ghost", name: "Ghost Miner", desc: "An invisible hand strikes 3× per second.", cost: 40, icon: "ghost" },
+  { id: "ghost", name: "Ghost Miner", desc: "An invisible hand strikes 3× per second at half power.", cost: 40, icon: "ghost" },
   { id: "dopamine", name: "Dopamine Loop", desc: "Stimulation gains ×2.", cost: 60, icon: "flame" },
   { id: "premine", name: "Pre-mine", desc: "Start each fork with 25 of each of the first four rigs.", cost: 100, icon: "server" },
   { id: "genesis", name: "Genesis Block", desc: "Each key level grants +3% instead of +2%.", cost: 150, icon: "key" },
@@ -211,16 +211,16 @@ const ach = (id, name, desc, get, target) => ACH.push({ id, name, desc, get, tar
   .forEach(([n, name]) => ach("b" + n, name, `Find ${fmtPlain(n)} block${n > 1 ? "s" : ""}`, () => S.blocksAll, n));
 [[1e3, "Pocket Change"], [1e5, "Stacking Sats"], [1e6, "Seven Digits"], [1e8, "One Whole Coin"], [1e9, "Ten Bitcoin"],
  [1e11, "Whale in Training"], [1e12, "Pizza Day Revenge"], [1e14, "One Million BTC"], [2.1e15, "21 Million"], [1e18, "Beyond the Cap"]]
-  .forEach(([n, name]) => ach("e" + n, name, `Mine ${fmtShort(n)} sats all-time`, () => S.allEarned, n));
+  .forEach(([n, name]) => ach("e" + n, name, `Mine ${fmtNice(n)} sats all-time`, () => S.allEarned, n));
 [[10, "Humming"], [1e3, "Datacenter at Home"], [1e5, "Industrial"], [1e7, "Grid Operator"], [1e9, "Planetary"], [1e11, "Stellar"]]
-  .forEach(([n, name]) => ach("p" + n, name, `Reach ${fmtShort(n)} sats/sec`, () => spsRawBase() * prodMult(true), n));
+  .forEach(([n, name]) => ach("p" + n, name, `Reach ${fmtNice(n)} sats/sec`, () => spsRawBase() * prodMult(true), n));
 RIGS.forEach((r) => {
   ach("r1" + r.id, `First ${r.name}`, `Own a ${r.name}`, () => S.counts[r.id], 1);
   ach("r100" + r.id, `${r.name} Fleet`, `Own 100 ${r.name}s`, () => S.counts[r.id], 100);
 });
 [[1, "Shiny"], [10, "Nonce Hunter"], [50, "Golden Touch"], [200, "Midas Hash"]]
   .forEach(([n, name]) => ach("g" + n, name, `Catch ${n} golden nonce${n > 1 ? "s" : ""}`, () => S.dropsAll, n));
-[[20, "In the Zone"], [30, "Impossible Flow"], [40, "Beyond Flow"]]
+[[20, "In the Zone"], [30, "Impossible Flow"], [40, "Beyond Flow"], [50, "Perfect Rhythm"]]
   .forEach(([n, name]) => ach("k" + n, name, `Reach a ×${n} combo`, () => S.bestCombo, n));
 [[1, "Hard Forked"], [5, "Chain Splitter"], [15, "Fork Bomb"]]
   .forEach(([n, name]) => ach("f" + n, name, `Hard fork ${n} time${n > 1 ? "s" : ""}`, () => S.forks, n));
@@ -263,9 +263,11 @@ function load() {
 }
 const S = load();
 let OWN = new Set(S.ups);
-let combo = 0, comboUntil = 0;
+let combo = 0, comboUntil = 0, lastComboCall = 0;
 
+let suppressSave = false; // set before a reload that must not write the old state back
 function save() {
+  if (suppressSave) return;
   S.lastSave = Date.now();
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (_) {}
 }
@@ -307,11 +309,13 @@ function prodMult(noBuff) {
 const sps = () => spsRawBase() * prodMult(false);
 const spsBase = () => spsRawBase() * prodMult(true);
 
-const comboCap = () => (hasMod("glow") ? 40 : 30);
+const COMBO_CAP = 50;
+const comboCap = () => COMBO_CAP;
 const comboWindow = () => (owns("capacitor") ? 2.5 : 1.5);
 const comboNow = () => (comboUntil > now() ? combo : 0);
-const comboMult = () => 1 + comboNow() * 0.03;
-function clickPower() {
+const comboStep = () => (hasMod("glow") ? 0.04 : 0.03);
+const comboMult = () => 1 + comboNow() * comboStep();
+function clickPower(noBuff) {
   let base = 1;
   if (owns("paste")) base *= 2;
   if (owns("firmware")) base *= 2;
@@ -321,7 +325,7 @@ function clickPower() {
   let modPct = 1;
   for (const m of MODS) if (m.click && hasMod(m.id)) modPct += m.click;
   let p = (base + sps() * hustle) * modPct * achMult() * keyMult() * (hasPerk("satoshi") ? 2 : 1) * comboMult();
-  if (buffOn("clickfrenzy")) p *= 777;
+  if (!noBuff && buffOn("clickfrenzy")) p *= 777;
   return p;
 }
 function blockChance() {
@@ -361,12 +365,15 @@ function gainStim(n) { n *= stimMult(); S.stim += n; S.stimEarned += n; }
 
 /* ---------------- formatting ---------------- */
 function fmtPlain(n) { return Math.floor(n).toLocaleString("en-US"); }
+function fmtNice(n) { return n < 1e6 ? fmtPlain(n) : fmtShort(n).replace(/(\.\d*?)0+(?=[A-Za-z]+$)/, "$1").replace(/\.(?=[A-Za-z]+$)/, ""); }
 function fmtShort(n) {
   if (n < 1000) return String(Math.floor(n));
   const i = Math.floor(Math.log10(n) / 3);
   if (i >= SUF.length) return n.toExponential(2).replace("e+", "e");
   const v = n / Math.pow(1000, i);
-  return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + SUF[i];
+  const str = v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  if (+str >= 1000) return fmtShort(Math.pow(1000, i + 1)); // 999.9995M rounds up to 1.00B, not 1000M
+  return str + SUF[i];
 }
 function fmt(n, dec) {
   if (!isFinite(n)) return "∞";
@@ -426,6 +433,7 @@ const sfx = {
   block() { if (!throttled("block", 180)) return; tone(660, 0.09, 0.05, "square"); tone(990, 0.14, 0.05, "square", 0, 0.08); tone(1320, 0.18, 0.035, "sine", 0, 0.16); },
   buy() { tone(520, 0.06, 0.045, "triangle"); tone(780, 0.09, 0.045, "triangle", 0, 0.06); },
   bigbuy() { tone(392, 0.07, 0.05, "triangle"); tone(523, 0.07, 0.05, "triangle", 0, 0.06); tone(784, 0.14, 0.05, "triangle", 0, 0.12); },
+  combo(c) { const f = 440 * Math.pow(2, c / 40); tone(f, 0.1, 0.045, "triangle"); tone(f * 1.5, 0.16, 0.04, "triangle", 0, 0.07); },
   deny() { tone(140, 0.08, 0.035, "square"); },
   drop() { tone(880, 0.12, 0.04, "sine"); tone(1175, 0.14, 0.035, "sine", 0, 0.09); },
   catch() { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.12, 0.045, "sine", 0, i * 0.055)); },
@@ -444,7 +452,7 @@ hydrateIcons();
 const el = {
   balance: $("#balance"), sps: $("#sps"), btc: $("#btc"), stim: $("#stim"), keys: $("#keys"),
   coin: $("#coin"), coreCard: $("#coreCard"), coreShake: $("#coreShake"), hash: $("#hashDisplay"),
-  blockOdds: $("#blockOdds"), clickPower: $("#clickPower"), combo: $("#combo"), comboBar: $("#comboBar"),
+  blockOdds: $("#blockOdds"), clickPower: $("#clickPower"), combo: $("#combo"), comboBar: $("#comboBar"), comboTime: $("#comboTime"),
   buffs: $("#buffs"), abilities: $("#abilities"), goal: $("#goalCard"), news: $("#news"),
   rigList: $("#rigList"), rigNote: $("#rigNote"), upList: $("#upList"), ownedGrid: $("#ownedGrid"), ownedCount: $("#ownedCount"),
   modGrid: $("#modGrid"), forkHero: $("#forkHero"), perkGrid: $("#perkGrid"), trophyGrid: $("#trophyGrid"), trophyTitle: $("#trophyTitle"),
@@ -507,9 +515,9 @@ function spray(x, y, n, big) {
 function floater(x, y, text, kind = "") {
   if (S.settings.fx === "off") return;
   if (particles.length > budget() + 40) return;
-  const big = kind === "block" || kind === "gold";
+  const big = kind === "block" || kind === "gold" || kind === "combo";
   particles.push({ x: x + (Math.random() - 0.5) * 24, y, vx: (Math.random() - 0.5) * 20, vy: big ? -70 : -95, life: 1, decay: big ? 0.7 : 1.1,
-    text, c: kind === "block" ? "#c8f24a" : kind === "gold" ? "#ffd166" : kind === "auto" ? "rgba(241,236,226,.55)" : "#f1ece2",
+    text, c: kind === "combo" ? "#ff9a3c" : kind === "block" ? "#c8f24a" : kind === "gold" ? "#ffd166" : kind === "auto" ? "rgba(241,236,226,.55)" : "#f1ece2",
     sz: big ? 22 : kind === "auto" ? 12 : 15, mono: false, g: 0, float: true });
 }
 function ribbonPush(text) {
@@ -576,12 +584,19 @@ function scrambleCrit() {
 // kind: "manual" (a real click or key press) | "storm" (Hash Storm ability) | "auto" (swarm / ghost miner)
 function strike(x, y, kind) {
   const t = now();
-  const handish = kind !== "auto";
   const show = kind === "manual" || coinOnScreen;
-  if (handish) {
+  if (kind === "storm" && comboUntil > t) comboUntil = t + comboWindow() * 1000; // storms keep a live combo warm
+  if (kind === "manual") {
     combo = Math.min(comboCap(), (comboUntil > t ? combo : 0) + 1);
     comboUntil = t + comboWindow() * 1000;
     if (combo > S.bestCombo) S.bestCombo = combo;
+    if (combo % 10 === 0 && combo !== lastComboCall && kind === "manual") {
+      lastComboCall = combo;
+      coinCenter();
+      floater(coinX, coinY - coinR - 10, combo === COMBO_CAP ? `MAX COMBO ×${combo}` : `COMBO ×${combo}`, "combo");
+      sfx.combo(combo);
+    }
+    if (combo < 10) lastComboCall = 0;
     S.clicks++; S.clicksAll++;
   }
   let p = clickPower();
@@ -589,7 +604,7 @@ function strike(x, y, kind) {
   const crit = Math.random() < blockChance();
   const pay = crit ? blockReward(p) : p;
   credit(pay);
-  gainStim(handish ? 1 + Math.floor(comboNow() / 10) : 0.25);
+  gainStim(kind === "manual" ? 1 + Math.floor(comboNow() / 10) : kind === "storm" ? 0.5 : 0.25);
 
   if (crit) {
     S.blocks++; S.blocksAll++;
@@ -608,7 +623,7 @@ function strike(x, y, kind) {
   } else if (kind === "manual") {
     sfx.strike(combo);
   }
-  if (show && (!crit || kind === "manual")) floater(x, y - 10, `+${fmt(pay)}`, kind === "auto" ? "auto" : "");
+  if (show && (!crit || kind === "manual")) floater(x, y - 10, `+${fmt(pay, true)}`, kind === "auto" ? "auto" : "");
   if (kind === "manual" && !crit) spray(x, y, modVisual("sparks") ? 10 : 4);
   if (kind !== "auto" && show && modVisual("ripples")) ripples.push({ x, y, r: 10, life: 1 });
   if (kind === "manual") ribbonPush(`${hex(6)}  +${fmt(pay)}`);
@@ -629,8 +644,8 @@ function buyRig(id) {
   S.sats -= cost;
   const before = n;
   S.counts[id] += k;
-  const hitMs = MILESTONES.find((m) => before < m && S.counts[id] >= m);
-  if (hitMs) { toast(`${icon("zap")}<span><b>${r.name} milestone</b> ${hitMs} owned: output ×2</span>`, "t-gold"); sfx.bigbuy(); }
+  const hits = MILESTONES.filter((m) => before < m && S.counts[id] >= m);
+  if (hits.length) { toast(`${icon("zap")}<span><b>${r.name} milestone${hits.length > 1 ? "s" : ""}</b> ${hits.join(", ")} owned: output ×${Math.pow(2, hits.length)}</span>`, "t-gold"); sfx.bigbuy(); }
   else sfx.buy();
   if (before === 0) toast(`${icon("server")}<span><b>${r.name}</b> is online.</span>`);
   const row = rowEls[id];
@@ -674,7 +689,7 @@ function buyMod(id) {
 function toggleModVisual(id) {
   const i = S.modsOff.indexOf(id);
   if (i >= 0) S.modsOff.splice(i, 1); else S.modsOff.push(id);
-  save(); renderMods(true);
+  save(); renderAll(true);
 }
 function buyPerk(id) {
   const p = PERKS.find((x) => x.id === id);
@@ -702,6 +717,7 @@ function useAbility(id) {
   const a = ABILITIES.find((x) => x.id === id);
   if (!a || !S.abUnlocked.includes(id)) return;
   if (!abilityReady(a)) { sfx.deny(); return; }
+  if (id === "magnet" && liveDrops.length >= 3) { sfx.deny(); toast(`${icon("magnet")}<span>Catch the nonces already on screen first.</span>`); return; }
   S.cd[id] = now() + a.cd * cdMult() * 1000;
   S.abilitiesUsed++;
   sfx.ability();
@@ -738,14 +754,15 @@ function spawnDrop(forced) {
   b.innerHTML = `<img src="${T}power-lucky.webp" alt="" draggable="false" />`;
   const drop = { id: dropId++, spec, el: b };
   b.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); catchDrop(drop, e.clientX, e.clientY); });
+  const stay = dropStay();
+  b.style.setProperty("--stay", stay + "ms");
   el.dropLayer.appendChild(b);
   liveDrops.push(drop);
   sfx.drop();
-  const stay = dropStay();
-  b.style.setProperty("--stay", stay + "ms");
   drop.timer = setTimeout(() => removeDrop(drop, true), stay);
 }
 function removeDrop(drop, missed) {
+  if (missed) drop.done = true;
   const i = liveDrops.indexOf(drop);
   if (i >= 0) liveDrops.splice(i, 1);
   clearTimeout(drop.timer);
@@ -753,6 +770,8 @@ function removeDrop(drop, missed) {
   else drop.el.remove();
 }
 function catchDrop(drop, x, y) {
+  if (drop.done) return;
+  drop.done = true;
   removeDrop(drop, false);
   S.drops++; S.dropsAll++;
   gainStim(10);
@@ -761,7 +780,7 @@ function catchDrop(drop, x, y) {
   const mult = dropEffectMult();
   let msg;
   if (kind === "lucky") {
-    const g = Math.min(S.sats * 0.15, spsBase() * 900) + 13 + clickPower() * 10;
+    const g = Math.min(S.sats * 0.15, spsBase() * 900) + 13 + clickPower(true) * 10;
     credit(g);
     floater(x, y, `+${fmt(g)}`, "gold");
     msg = `<b>Lucky nonce!</b> +${fmt(g)} sats`;
@@ -778,7 +797,7 @@ function catchDrop(drop, x, y) {
     for (const a of ABILITIES) S.cd[a.id] = 0;
     msg = `<b>Coolant flush!</b> Every ability is ready`;
   }
-  toast(`<img class="t-img" src="${T}power-lucky.webp" alt="" /><span>${msg}</span>`, "t-gold");
+  toast(`<img class="t-img" src="${T}${drop.spec.img}.webp" alt="" /><span>${msg}</span>`, "t-gold");
   spray(x, y, 36, true);
   shake(0.6);
   sfx.catch();
@@ -791,7 +810,7 @@ let stampAt = now() + 25000, whaleAt = now() + 60000, ransomAt = now() + 45000;
 function modEvents(t) {
   if (hasMod("stamp") && t >= stampAt) {
     stampAt = t + 25000;
-    const pay = Math.max(30, spsBase() * 20 + clickPower() * 5);
+    const pay = Math.max(30, spsBase() * 20 + clickPower(true) * 5);
     credit(pay);
     ribbonPush(`${hex(6)}  +${fmt(pay)}`);
     if (modVisual("stamp")) {
@@ -822,6 +841,11 @@ function modEvents(t) {
   if (hasMod("ransom") && t >= ransomAt) {
     ransomAt = t + (45 + Math.random() * 30) * 1000;
     if (modVisual("ransom")) spawnRansom();
+    else {
+      const pay = Math.max(60, spsBase() * 120);
+      credit(pay); gainStim(3);
+      toast(`${icon("lock")}<span>A locker was swept quietly: <b>+${fmt(pay)} sats</b></span>`);
+    }
   }
 }
 function spawnRansom() {
@@ -945,13 +969,18 @@ function openSettings() {
     box.hidden = false;
     box.value = btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     box.select();
-    try { navigator.clipboard.writeText(box.value); toast(`${icon("check")}<span>Save copied to clipboard.</span>`); } catch (_) {}
+    try {
+      navigator.clipboard.writeText(box.value)
+        .then(() => toast(`${icon("check")}<span>Save copied to clipboard.</span>`))
+        .catch(() => toast(`${icon("check")}<span>Save code ready. Copy it from the box.</span>`));
+    } catch (_) {}
   };
   $("#importBtn").onclick = () => {
     if (box.hidden) { box.hidden = false; box.value = ""; box.focus(); return; }
     try {
       const data = JSON.parse(decodeURIComponent(escape(atob(box.value.trim()))));
       if (!data || data.v !== 4) throw new Error("bad");
+      suppressSave = true;
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
       location.reload();
     } catch (_) { toast(`${icon("x")}<span>That save code did not work.</span>`, "t-red"); }
@@ -959,12 +988,11 @@ function openSettings() {
   const wipe = $("#wipeBtn");
   wipe.onclick = () => {
     if (!wipe.classList.contains("armed")) { wipe.classList.add("armed"); wipe.textContent = "Tap again to wipe"; setTimeout(() => { wipe.classList.remove("armed"); wipe.textContent = "Wipe save"; }, 3000); return; }
-    wiping = true;
+    suppressSave = true;
     localStorage.removeItem(SAVE_KEY); localStorage.removeItem(LEGACY_KEY);
     location.reload();
   };
 }
-let wiping = false;
 
 /* ---------------- offline ---------------- */
 function grantOffline(secs, announce) {
@@ -1026,6 +1054,12 @@ function renderTop() {
   setText(el.stim, fmt(Math.floor(S.stim)));
   setText(el.keys, fmt(S.keys));
 }
+function etaText(cost) {
+  const r = sps();
+  if (r <= 0) return "";
+  const secs = (cost - S.sats) / r;
+  return secs > 0 && secs < 86400 * 30 ? "in " + fmtTime(secs) : "";
+}
 function renderMute() { el.mute.innerHTML = icon(S.settings.sound ? "volume" : "mute"); }
 
 function renderCore() {
@@ -1033,12 +1067,15 @@ function renderCore() {
   setText(el.clickPower, "+" + fmt(clickPower(), true));
   setText(el.blockOdds, Math.round(blockChance() * 100) + "%");
   const c = comboNow();
-  setText(el.combo, "×" + c + (c ? `  +${Math.round(c * 3)}%` : ""));
+  setText(el.combo, "×" + c + (c ? `  +${Math.round(c * comboStep() * 100)}%` : ""));
   el.comboBar.style.width = (c / comboCap()) * 100 + "%";
-  setCls(el.coreCard, "hot", c >= 20);
-  setCls(el.coreCard, "glow", modVisual("glow") && c >= 15);
+  setCls(el.coreCard, "hot", c >= 25);
+  setCls(el.coreCard, "glow", modVisual("glow") && c >= 20);
+  el.comboTime.style.transform = `scaleX(${c ? Math.max(0, (comboUntil - t) / (comboWindow() * 1000)) : 0})`;
   setCls(el.coreCard, "overclock", buffOn("overclock") || buffOn("frenzy"));
   setCls(el.coreCard, "clickfrenzy", buffOn("clickfrenzy"));
+  const hint = $("#coinHint");
+  if (hint.hidden !== S.clicksAll >= 3) hint.hidden = S.clicksAll >= 3;
 
   // buffs
   const active = Object.keys(BUFF_INFO).filter(buffOn);
@@ -1108,7 +1145,8 @@ function renderRigs() {
     setCls(e.row, "fresh", n === 0);
     setText(e.count, n ? fmt(n) : "");
     setText(e.cost, fmt(cost));
-    setText(e.qty, k > 1 ? `×${k}` : "");
+    const eta = !can && cost > S.sats ? etaText(cost) : "";
+    setText(e.qty, [k > 1 ? `×${k}` : "", eta].filter(Boolean).join(" · "));
     const each = unitRate(r) * pm;
     const share = total > 0 ? (n * each) / total : 0;
     setText(e.rate, n ? `${fmt(n * each, true)}/s · ${Math.round(share * 100)}% of output` : `+${fmt(each, true)}/s each`);
@@ -1148,7 +1186,13 @@ function renderUpgrades(force) {
     setText(el.ownedCount, owned.length ? `(${owned.length})` : "");
     el.ownedGrid.innerHTML = owned.length ? owned.map((u) => `<span class="owned" title="${u.name}: ${u.desc}">${upIcon(u)}</span>`).join("") : `<p class="muted-note">Nothing installed yet.</p>`;
   }
-  $$(".up", el.upList).forEach((b) => { const u = ALL_UPS.find((x) => x.id === b.dataset.up); setCls(b, "can", u && S.sats >= u.cost); });
+  $$(".up", el.upList).forEach((b) => {
+    const u = ALL_UPS.find((x) => x.id === b.dataset.up);
+    if (!u) return;
+    const can = S.sats >= u.cost;
+    setCls(b, "can", can);
+    setText($(".up-cost em", b), can ? "sats" : etaText(u.cost) || "sats");
+  });
 }
 
 function renderMods(force) {
@@ -1301,11 +1345,12 @@ function rotateNews() {
 document.addEventListener("pointerdown", () => audio(), { once: true });
 el.coin.addEventListener("pointerdown", (e) => {
   e.preventDefault();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   strike(e.clientX, e.clientY - 6, "manual");
   pressCoin();
 });
 addEventListener("keydown", (e) => {
-  if (e.target.matches("input, textarea")) return;
+  if (e.target.matches && e.target.matches("input, textarea")) return;
   if (e.key === "Escape") return closeModal();
   if (modalOpen) return;
   if ((e.code === "Space" || e.code === "Enter") && !e.repeat) {
@@ -1364,11 +1409,15 @@ function tick() {
     while (n-- > 0) strike(coinX + (Math.random() - 0.5) * coinR * 1.4, coinY - coinR * 0.3 + (Math.random() - 0.5) * coinR, "auto");
   }
 
-  if (t >= nextDropAt) { spawnDrop(false); scheduleDrop(); }
+  if (t >= nextDropAt) {
+    if (document.hidden) nextDropAt = t + 10000; // never waste a golden nonce on a hidden tab
+    else if (liveDrops.length) nextDropAt = t + 5000; // one is already out: try again shortly
+    else { spawnDrop(false); scheduleDrop(); }
+  }
   modEvents(t);
 
   scrambleAcc += dt; if (scrambleAcc > 0.12) { scrambleAcc = 0; scramble(); }
-  achAcc += dt; if (achAcc > 1) { achAcc = 0; checkAch(); }
+  achAcc += dt; if (achAcc > 1) { achAcc = 0; checkAch(); document.title = `${fmt(S.sats)} sats · Hash Forge`; }
   saveAcc += dt; if (saveAcc > 10) { saveAcc = 0; save(); }
   newsAcc += dt; if (newsAcc > 10) { newsAcc = 0; rotateNews(); }
 
@@ -1472,8 +1521,8 @@ function frame(tNow) {
 
 /* ---------------- boot ---------------- */
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
-addEventListener("pagehide", () => { if (!wiping) save(); });
-addEventListener("beforeunload", () => { if (!wiping) save(); });
+addEventListener("pagehide", save);
+addEventListener("beforeunload", save);
 
 buildRigs();
 buildAbilities();
