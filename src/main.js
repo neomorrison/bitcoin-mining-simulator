@@ -1,5 +1,5 @@
 /* ============================================================
-   HASH FORGE v2 — a bitcoin mining clicker
+   HASH FORGE v3 — a bitcoin mining clicker
    Strike the block. Drones hash for you. Spend stimulation on chaos.
    ============================================================ */
 
@@ -24,24 +24,24 @@ const UPGRADES = [
 ];
 const DRONE_UPS = [
   ["od1", "Drone overdrive I", "Drones strike ×2 speed.", 2500],
-  ["od2", "Drone overdrive II", "Drones strike ×2 again.", 25000],
+  ["od2", "Drone overdrive II", "Doubles it again.", 25000],
 ];
 const CHAOS = [
   ["sparks", "Hash sparks", "Every strike sprays hex shards.", 5, "⚡"],
-  ["comet", "Cursor comet", "Your pointer leaves a hash trail.", 14, "☄️"],
-  ["ripples", "Block ripples", "Strikes ring out across the void.", 22, "◎"],
-  ["rain", "Nonce rain", "Hex ticker-tape from the sky.", 40, "🌧️"],
-  ["starfield", "Deep space screensaver", "The void fills with drifting stars.", 70, "✨"],
-  ["bounce", "Bouncing block", "A ₿ ricochets. Wall hits pay.", 110, "₿", true],
-  ["quake", "Rig quake", "Every strike shakes the aisle.", 160, "🌋"],
-  ["crt", "Old monitor", "Scanlines. +8% strike payout.", 240, "📺"],
-  ["chroma", "Chromatic bleed", "The farm splits into RGB ghosts.", 340, "🌈"],
-  ["smash", "Hydraulic smash", "A press slams the aisle every few seconds. Pays out.", 500, "🏗️"],
-  ["spam", "Mempool spam", "Popup windows! Close them for sats.", 700, "🗯️"],
-  ["strobe", "Farm strobe", "LEDs pulse when your combo runs hot.", 950, "💡"],
+  ["ripples", "Shock ripples", "Strikes ring out across the void.", 14, "◎"],
+  ["ribbon", "Ledger ribbon", "Your payouts scroll across the floor.", 22, "▤"],
+  ["cascade", "Hash cascade", "Columns of hex pour down the walls.", 40, "⌁"],
+  ["chain", "Chain constellation", "Every block you mine joins the night sky.", 70, "✦"],
+  ["swarm", "Rig swarm", "Your drones orbit the strike core, visible and smug.", 110, "🛰️"],
+  ["rumble", "Core rumble", "Block finds rumble the foundation. Only those.", 160, "🪨"],
+  ["terminal", "Retro terminal", "Scanlines over everything. +8% strike payout.", 240, "📺"],
+  ["shimmer", "Heat shimmer", "The whole bay warps in its own exhaust.", 340, "🌫️"],
+  ["stamp", "Difficulty stamp", "Retargets slam the aisle every few seconds — and pay.", 500, "🏷️"],
+  ["ransom", "Ransomware", "Fake lockers appear. 'Decrypt' sweeps their wallet.", 700, "🦠"],
+  ["glow", "Combo overclock glow", "The core burns bright when your combo runs hot.", 950, "💡"],
   ["worm", "Mempool wormhole", "Warp vignette. +10% rig output.", 1300, "🕳️"],
-  ["subliminal", "Subliminal ticker", "The news sometimes says: MINE MORE.", 1800, "👁️"],
-  ["ocean", "Go to the ocean", "Turn it all off. A huge payout. Peace.", 8000, "🌊"],
+  ["whale", "Whale alerts", "Whales swim past the window. Markets move. You get paid.", 1800, "🐳"],
+  ["lastsat", "The last sat", "Wind it all down. Mine the final coin of 21 million.", 8000, "🏁"],
 ];
 const ACHIEVEMENTS = [
   ["s10", "First contact", "10 strikes", (S) => S.clicks >= 10],
@@ -64,7 +64,7 @@ const ACHIEVEMENTS = [
   ["orb10", "Catch 'em all", "Catch 10 drops", (S) => S.orbsCaught >= 10],
   ["life1m", "Seven digits", "1M lifetime sats", (S) => S.lifetimeTotal >= 1e6],
   ["fork1", "Hard forked", "Fork the chain once", (S) => S.forks >= 1],
-  ["ocean1", "The quiet", "Reach the ocean", (S) => S.ocean],
+  ["lastsat1", "21 Million", "Mine the last sat", (S) => S.lastsat],
 ];
 const EVENTS = [
   ["overclock", "Overclock", "Rigs ×3, 14s", "./assets/power-overclock.png", 14],
@@ -83,9 +83,19 @@ const NEWS = [
   "A very large number was seen near block 900000.",
   "Local miner claims clicking faster 'just feels right'.",
 ];
-const SUBS = ["MINE MORE", "CLICK IT", "STAY ONLINE", "HASH IS LOVE", "NEVER STOP"];
-
-const SAVE_KEY = "hash-forge-v2";
+const WHALES = [
+  "🐳 WHALE ALERT — 4,021 BTC moved to cold storage. market unimpressed.",
+  "🐳 WHALE ALERT — 880 BTC bought in a single block. your fees tick up.",
+  "🐳 WHALE ALERT — ancient 50 BTC stash from 2010 just woke up.",
+  "🐳 WHALE ALERT — exchange wallet reshuffled for no reason anyone can name.",
+  "🐳 WHALE ALERT — whale denied everything. wallet says otherwise.",
+];
+const RANSOMWARE = [
+  ["⚠ ALL YOUR HASHES BELONG TO US", "rigs encrypted with a military-grade nonce. resistance is forked.", "DECRYPT (FREE?!)"],
+  ["⚠ LOCKERMINER v2.4", "pay 0.0000 BTC or the fans spin down forever. yes. zero.", "Sweep their key"],
+  ["⚠ your asics are mine now", "attacker typo'd their own wallet address into the locker.", "DRAIN ATTACKER"],
+];
+const SAVE_KEY = "hash-forge-v3";
 const HEX = "0123456789ABCDEF";
 const COST = 1.15;
 
@@ -95,9 +105,9 @@ function defaultState() {
   return {
     sats: 0, lifetime: 0, lifetimeTotal: 0, stim: 0, stimEarned: 0,
     hashes: 0, clicks: 0, blocks: 0,
-    counts: emptyCounts(), drones: 0, ups: [], droneUps: [], chaos: [], bounceN: 0,
+    counts: emptyCounts(), drones: 0, ups: [], droneUps: [], chaos: [],
     ach: [], forks: 0, orbsCaught: 0,
-    lucky: false, ocean: false, muted: false,
+    lucky: false, lastsat: false, muted: false,
     bestCombo: 0, buffRemain: {}, lastSave: Date.now(),
   };
 }
@@ -106,15 +116,14 @@ function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     if (!raw) return d;
-    const S = { ...d, ...raw, counts: { ...emptyCounts(), ...(raw.counts || {}) } };
-    return S;
+    return { ...d, ...raw, counts: { ...emptyCounts(), ...(raw.counts || {}) } };
   } catch (_) { return d; }
 }
 const S = load();
 S.heat = 0; S.combo = 0; S.comboUntil = 0; S.t = 0;
 S.buff = {}; for (const k in (S.buffRemain || {})) S.buff[k] = S.t + (+S.buffRemain[k] || 0);
 S.orbs = []; S.nextOrb = 10;
-S.autoAcc = 0; S.smashAt = 6; S.spamAt = 24; S.subAt = 30;
+S.autoAcc = 0; S.stampAt = 8; S.ransomAt = 26; S.whaleAt = 40;
 S.newsIdx = Math.floor(Math.random() * NEWS.length);
 
 function save() {
@@ -125,9 +134,9 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       sats: S.sats, lifetime: S.lifetime, lifetimeTotal: S.lifetimeTotal, stim: S.stim, stimEarned: S.stimEarned,
       hashes: S.hashes, clicks: S.clicks, blocks: S.blocks,
-      counts: S.counts, drones: S.drones, ups: S.ups, droneUps: S.droneUps, chaos: S.chaos, bounceN: S.bounceN,
+      counts: S.counts, drones: S.drones, ups: S.ups, droneUps: S.droneUps, chaos: S.chaos,
       ach: S.ach, forks: S.forks, orbsCaught: S.orbsCaught,
-      lucky: S.lucky, ocean: S.ocean, muted: S.muted,
+      lucky: S.lucky, lastsat: S.lastsat, muted: S.muted,
       bestCombo: S.bestCombo, buffRemain: remain, lastSave: S.lastSave,
     }));
   } catch (_) {}
@@ -149,7 +158,7 @@ function clickPower() {
   if (up("firmware")) p *= 2;
   if (up("silicon")) p *= 3;
   if (up("cosmic")) p *= 4;
-  if (has("crt") && !S.ocean) p *= 1.08;
+  if (has("terminal") && !S.lastsat) p *= 1.08;
   return p * comboMult() * achMult() * forkMult();
 }
 function rigRate() {
@@ -159,8 +168,8 @@ function rigRate() {
   if (up("nuclear")) r *= 3;
   if ((S.buff.overclock || 0) > S.t) r *= 3;
   if ((S.buff.coolant || 0) > S.t) r *= 1.5;
-  if (has("worm") && !S.ocean) r *= 1.1;
-  if (S.ocean) r *= 0.45;
+  if (has("worm") && !S.lastsat) r *= 1.1;
+  if (S.lastsat) r *= 0.45;
   if (S.heat > 88) r *= 0.6;
   return r * forkMult();
 }
@@ -177,8 +186,6 @@ function critPay() { return clickPower() * 20 * (S.lucky ? 25 : 1); }
 function comboWindow() { return up("combo") ? 2.4 : 1.4; }
 function nextCost(base, n) { return Math.floor(base * Math.pow(COST, n)); }
 function droneCost() { return Math.floor(120 * Math.pow(1.7, S.drones)); }
-function bounceCost() { return Math.floor(110 * Math.pow(1.55, S.bounceN)); }
-function chaosCost(id) { return id === "bounce" ? bounceCost() : (CHAOS.find((c) => c[0] === id) || [0, 0, 0, 0])[3]; }
 function credit(n) { S.sats += n; S.lifetime += n; S.lifetimeTotal += n; }
 function fmt(n) {
   if (!isFinite(n)) return "∞";
@@ -188,6 +195,7 @@ function fmt(n) {
   while (n >= 1e3 && i < u.length - 1) { n /= 1e3; i++; }
   return (n >= 100 ? Math.floor(n) : n.toFixed(1)) + u[i];
 }
+function hex6() { let s = ""; for (let i = 0; i < 6; i++) s += HEX[Math.floor(Math.random() * 16)]; return s; }
 
 /* ---------------- audio ---------------- */
 let AC = null, lastDroneBeep = 0;
@@ -213,16 +221,24 @@ function tone(f, d = 0.08, v = 0.045, type = "square", slide = 0) {
 }
 const sfx = {
   strike(c) { tone(300 + c * 22, 0.06, 0.04); },
-  drone() { const n = performance.now(); if (n - lastDroneBeep > 110) { lastDroneBeep = n; tone(220, 0.045, 0.014, "sine"); } },
+  drone() { const n = performance.now(); if (n - lastDroneBeep > 140) { lastDroneBeep = n; tone(220, 0.045, 0.012, "sine"); } },
   crit() { tone(660, 0.1, 0.06, "square"); setTimeout(() => tone(990, 0.16, 0.06, "square"), 90); },
   buy() { tone(520, 0.07, 0.05, "triangle"); setTimeout(() => tone(780, 0.1, 0.05, "triangle"), 70); },
   orb() { tone(880, 0.12, 0.05, "sine"); setTimeout(() => tone(1320, 0.14, 0.04, "sine"), 80); },
-  smash() { tone(70, 0.2, 0.09, "sawtooth", -30); },
-  spam() { tone(200, 0.09, 0.05, "sawtooth"); setTimeout(() => tone(150, 0.12, 0.05, "sawtooth"), 60); },
+  stamp() { tone(90, 0.16, 0.08, "sawtooth", -40); },
+  ransom() { tone(520, 0.09, 0.05, "sawtooth"); setTimeout(() => tone(392, 0.12, 0.05, "sawtooth"), 110); },
   claim() { tone(700, 0.08, 0.05, "sine"); setTimeout(() => tone(1050, 0.1, 0.05, "sine"), 70); },
+  whale() { tone(98, 0.5, 0.06, "sine", -20); },
   fork() { tone(400, 0.5, 0.08, "sawtooth", -320); },
   deny() { tone(130, 0.1, 0.04, "square"); },
 };
+
+/* ---------------- screen shake (block finds only) ---------------- */
+let trauma = 0;
+function shake(amt) {
+  if (S.lastsat) amt *= 0.4;
+  trauma = Math.min(0.7, trauma + amt);
+}
 
 /* ---------------- canvas fx ---------------- */
 const canvas = document.getElementById("fx");
@@ -230,36 +246,64 @@ const ctx = canvas.getContext("2d");
 function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
 resize(); addEventListener("resize", resize);
 
-const particles = [], ripples = [], balls = [], stars = [];
-let trauma = 0, trailAt = 0;
+const particles = [], ripples = [], chainNodes = [], ribbon = [];
+let coreX = innerWidth / 2, coreY = innerHeight / 2, coreAt = 0;
 const ptr = { x: innerWidth / 2, y: innerHeight / 2 };
-addEventListener("pointermove", (e) => {
-  ptr.x = e.clientX; ptr.y = e.clientY;
-  if (has("comet") && !S.ocean && performance.now() - trailAt > 28) {
-    trailAt = performance.now();
-    particles.push({ x: ptr.x, y: ptr.y, vx: (Math.random() - 0.5) * 40, vy: -30 - Math.random() * 40, life: 1, text: HEX[Math.floor(Math.random() * 16)], c: "#3ec8e8", sz: 11 });
-  }
-}, { passive: true });
 
+// adaptive quality: drop particle budgets when frames run long
+let Q = 1, emaDt = 16;
+const FONT_CACHE = {};
+function fontStr(sz, mono) {
+  const k = sz + (mono ? "m" : "s");
+  return FONT_CACHE[k] || (FONT_CACHE[k] = `${sz}px ${mono ? "'IBM Plex Mono'" : "'Space Grotesk'"}, monospace`);
+}
 function spray(x, y, n, big) {
+  n = Math.round(n * Q);
+  if (particles.length > 240 * Q) return;
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, spd = 60 + Math.random() * (big ? 300 : 190);
     particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd - 50, life: 1, text: HEX[i % 16], c: i % 3 === 0 ? "#ff6a1a" : i % 3 === 1 ? "#c8f24a" : "#3ec8e8", sz: big ? 14 : 11 });
   }
 }
 function floater(x, y, text, big) {
+  if (particles.length > 240 * Q) return;
   particles.push({ x, y, vx: (Math.random() - 0.5) * 30, vy: -85, life: 1, text, c: big ? "#c8f24a" : "#efe8d8", sz: big ? 20 : 13, mono: true });
 }
-function juice(kind, x, y, text) {
-  if (S.ocean) return;
-  if (has("sparks")) spray(x, y, kind === "crit" ? 34 : kind === "auto" ? 5 : 13, kind === "crit");
-  if (text) floater(x, y, text, kind === "crit");
-  if (has("ripples") && kind !== "auto") ripples.push({ x, y, r: 8, life: 1 });
-  if (has("quake")) trauma = Math.min(1, trauma + (kind === "crit" ? 0.5 : kind === "smash" ? 0.55 : 0.16));
+function ribbonPush(text) {
+  if (!has("ribbon") || S.lastsat) return;
+  ribbon.push({ text, x: canvas.width + 30 });
+  if (ribbon.length > 18) ribbon.shift();
+}
+function addChainNode() {
+  if (!has("chain") || S.lastsat) return;
+  chainNodes.push({ x: 30 + Math.random() * (canvas.width - 60), y: 20 + Math.random() * (canvas.height * 0.65), born: S.t, seed: Math.random() * 10 });
+  if (chainNodes.length > 90) chainNodes.shift();
+}
+// pre-rendered drone sprite for the swarm
+const droneSprite = document.createElement("canvas");
+droneSprite.width = droneSprite.height = 22;
+{
+  const c = droneSprite.getContext("2d");
+  c.strokeStyle = "#3ec8e8"; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(11, 2); c.lineTo(20, 11); c.lineTo(11, 20); c.lineTo(2, 11); c.closePath(); c.stroke();
+  c.fillStyle = "#c8f24a"; c.fillRect(9, 9, 4, 4);
+}
+
+function manualJuice(x, y, crit, text) {
+  if (S.lastsat) return;
+  if (has("sparks")) spray(x, y, crit ? 30 : 13, crit);
+  if (text) floater(x, y, text, crit);
+  if (has("ripples")) ripples.push({ x, y, r: 8, life: 1 });
+}
+function droneJuice(acc, pay) {
+  if (S.lastsat || !acc) return;
+  const bx = coreX, by = coreY;
+  spray(bx + (Math.random() - 0.5) * 140, by + (Math.random() - 0.5) * 110, Math.min(3 + acc, 9));
+  floater(bx + (Math.random() - 0.5) * 160, by - 40, `+${fmt(pay)}`, false);
 }
 
 /* ---------------- core actions ---------------- */
-function strike(x, y, manual) {
+function strikeEconomy(manual) {
   S.hashes += 1;
   if (manual) S.clicks += 1;
   const crit = Math.random() < critChance() * (manual ? 1 : 0.55);
@@ -270,42 +314,57 @@ function strike(x, y, manual) {
     S.blocks += 1;
     if (S.lucky) S.lucky = false;
     blockBanner(pay, luckyNow);
+    addChainNode();
+    scrambleCrit();
     sfx.crit();
-    trauma = Math.min(1, trauma + 0.6);
+    shake(0.3);
   } else {
     pay = clickPower() * (manual ? 1 : 0.5);
-    sfx[manual ? "strike" : "drone"](S.combo);
+    if (manual) sfx.strike(S.combo); else sfx.drone();
   }
   credit(pay);
-  S.stim += manual ? 1 + Math.floor(S.combo / 6) : 0.2;
-  S.stimEarned += manual ? 1 + Math.floor(S.combo / 6) : 0.2;
+  const stimGain = manual ? 1 + Math.floor(S.combo / 6) : 0.2;
+  S.stim += stimGain; S.stimEarned += stimGain;
   if (manual) {
     S.combo = Math.min(30, (S.comboUntil > S.t ? S.combo : 0) + 1);
-    S.comboUntil = S.t + comboWindow();
     S.bestCombo = Math.max(S.bestCombo, S.combo);
     S.heat = Math.min(100, S.heat + 3.5);
+    S.comboUntil = S.t + comboWindow();
   } else {
     S.heat = Math.min(100, S.heat + 0.5);
+    if (S.comboUntil > S.t) S.comboUntil = S.t + comboWindow(); // drones keep the combo warm
   }
-  if (S.comboUntil > S.t) S.comboUntil = S.t + comboWindow();
-  juice(manual ? (crit ? "crit" : "click") : "auto", x, y, `+${fmt(pay)}`);
-  scrambleHash(crit);
+  return { pay, crit };
+}
+function manualStrike(x, y) {
+  const res = strikeEconomy(true);
+  manualJuice(x, y, res.crit, `+${fmt(res.pay)}`);
+  ribbonPush(`${hex6()} +${fmt(res.pay)}`);
 }
 function blockBanner(pay, luckyNow) {
   const el = document.createElement("div");
   el.className = "block-flash";
-  el.innerHTML = `BLOCK FOUND +${fmt(pay)} SATS<small>${luckyNow ? "LUCKY NONCE ×25 — " : ""}NONCE ${Math.floor(Math.random() * 0xffffff).toString(16).toUpperCase().padStart(6, "0")}</small>`;
+  el.innerHTML = `BLOCK FOUND +${fmt(pay)} SATS<small>${luckyNow ? "LUCKY NONCE ×25 — " : ""}NONCE ${hex6()}</small>`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 950);
 }
 
-let hashShown = "";
-function scrambleHash(crit) {
+let lastCritShown = -10;
+function scramble(forceCrit) {
   const el = $("#hashDisplay");
   if (!el) return;
+  if (forceCrit) lastCritShown = S.t;
+  if (S.t - lastCritShown < 0.45) return; // let the zeros linger after a block
   let s = "";
-  for (let i = 0; i < 8; i++) s += crit && i < 4 ? "0" : HEX[Math.floor(Math.random() * 16)];
-  hashShown = s;
+  for (let i = 0; i < 8; i++) s += HEX[Math.floor(Math.random() * 16)];
+  el.textContent = s;
+}
+function scrambleCrit() {
+  const el = $("#hashDisplay");
+  if (!el) return;
+  let s = "0000";
+  for (let i = 0; i < 4; i++) s += HEX[Math.floor(Math.random() * 16)];
+  lastCritShown = S.t;
   el.innerHTML = [...s].map((c) => (c === "0" ? `<span class="zero">${c}</span>` : c)).join("");
 }
 
@@ -323,7 +382,7 @@ function buyDrone() {
   if (S.sats < cost) { sfx.deny(); return; }
   S.sats -= cost; S.drones += 1;
   toast(S.drones === 1 ? "Auto-hasher online. It never sleeps." : `Drone #${S.drones} deployed.`);
-  spray(ptr.x, ptr.y, 20); sfx.buy(); save(); renderLists();
+  spray(ptr.x, ptr.y, 18); sfx.buy(); save(); renderLists();
 }
 function buyUpgrade(id) {
   const u = UPGRADES.find((x) => x[0] === id);
@@ -341,23 +400,19 @@ function buyDroneUp(id) {
 }
 function buyChaos(id) {
   const spec = CHAOS.find((c) => c[0] === id);
-  const cost = chaosCost(id);
-  const repeat = !!spec[5];
-  if (!repeat && has(id)) return;
-  if (S.stim < cost) { sfx.deny(); toast(`Need ${Math.ceil(cost - S.stim)} more stimulation.`); return; }
-  S.stim -= cost;
-  if (!has(id)) S.chaos.push(id);
-  if (id === "bounce") S.bounceN += 1;
-  if (id === "ocean") {
-    S.ocean = true;
-    credit(4000); S.heat = 0;
-    toast("The fans spin down. You can hear the ocean. +4,000 sats.");
-    sfx.fork();
+  if (has(id)) return;
+  if (S.stim < spec[3]) { sfx.deny(); toast(`Need ${Math.ceil(spec[3] - S.stim)} more stimulation.`); return; }
+  S.stim -= spec[3]; S.chaos.push(id);
+  if (id === "lastsat") {
+    S.lastsat = true;
+    credit(5000); S.heat = 0;
+    toast("20,999,999.9999760 → 21,000,000. That's all of them. The farm hums, golden and calm.");
+    shake(0.55); sfx.fork();
   } else {
     toast(`${spec[1]} unlocked.`);
     sfx.buy();
   }
-  spray(ptr.x, ptr.y, 26, true);
+  spray(ptr.x, ptr.y, 22, true);
   save(); renderLists();
 }
 function catchOrb(orb, e) {
@@ -367,7 +422,8 @@ function catchOrb(orb, e) {
   if (orb.kind === "airdrop") {
     const p = Math.max(60, rigRate() * 45) * (0.8 + Math.random() * 0.5);
     credit(p); toast(`Airdrop caught: +${fmt(p)} sats.`);
-    spray(e.clientX, e.clientY, 24, true); floater(e.clientX, e.clientY, `+${fmt(p)}`, true);
+    spray(e.clientX, e.clientY, 22, true); floater(e.clientX, e.clientY, `+${fmt(p)}`, true);
+    ribbonPush(`${hex6()} +${fmt(p)}`);
   } else if (orb.kind === "lucky") {
     S.lucky = true; toast("Lucky nonce armed — next block ×25.");
   } else {
@@ -394,7 +450,7 @@ function doFork() {
   S.lucky = false; S.buff = {};
   toast(`HARD FORK #${S.forks}. All output +${Math.round(S.forks * 18)}%. The chain survives.`);
   sfx.fork();
-  trauma = 1;
+  shake(0.5);
   save(); renderLists(); renderStats();
 }
 
@@ -482,7 +538,7 @@ document.getElementById("root").innerHTML = `
       <div class="ach-grid" id="achGrid"></div>
       <div class="fork-panel">
         <h3>HARD FORK</h3>
-        <p>Reset your rigs, drones and upgrades. Keep chaos, achievements and the ocean. Every fork grants a permanent <b style="color:var(--accent)">+18% to all output</b>.</p>
+        <p>Reset your rigs, drones and upgrades. Keep chaos, achievements and the last sat. Every fork grants a permanent <b style="color:var(--accent)">+18% to all output</b>.</p>
         <p class="fork-stat" id="forkStat"></p>
         <button class="fork-btn" id="forkBtn" type="button">HARD FORK THE CHAIN</button>
       </div>
@@ -492,15 +548,11 @@ document.getElementById("root").innerHTML = `
 </main>`;
 
 /* ---------------- render ---------------- */
-function hashrate() {
-  // strikes per second: drones + a gentle nod to manual clicking
-  return autoRate() + (S.clicks > 4 ? 1.5 : 0);
-}
+function hashrate() { return autoRate() + (S.clicks > 4 ? 1.5 : 0); }
 function incomeRate() {
   const dronePay = clickPower() * 0.5 * (1 + 19 * critChance() * 0.55);
   return rigRate() + autoRate() * dronePay;
 }
-
 function renderStats() {
   $("#balance").innerHTML = `${fmt(S.sats)} <em>SATS</em>`;
   $("#stim").textContent = fmt(Math.floor(S.stim));
@@ -524,17 +576,17 @@ function renderStats() {
     hint.innerHTML = `${S.clicks}/10 STRIKES → AUTO-HASHER ONLINE`;
   }
   const forge = $("#forge");
-  forge.classList.toggle("fx-crt", has("crt") && !S.ocean);
-  forge.classList.toggle("fx-chroma", has("chroma") && !S.ocean);
-  forge.classList.toggle("fx-strobe", has("strobe") && S.comboUntil > S.t && S.combo > 6 && !S.ocean);
-  forge.classList.toggle("fx-worm", has("worm") && !S.ocean);
-  forge.classList.toggle("fx-ocean", S.ocean);
-  forge.classList.toggle("fx-heat", S.heat > 88 && !S.ocean);
+  const calm = S.lastsat;
+  forge.classList.toggle("fx-terminal", has("terminal") && !calm);
+  forge.classList.toggle("fx-shimmer", has("shimmer") && !calm);
+  forge.classList.toggle("fx-glow", has("glow") && S.comboUntil > S.t && S.combo > 8 && !calm);
+  forge.classList.toggle("fx-worm", has("worm") && !calm);
+  forge.classList.toggle("fx-lastsat", calm);
+  forge.classList.toggle("fx-heat", S.heat > 88 && !calm);
   $("#muteBtn").textContent = S.muted ? "🔇" : "🔊";
 }
 
 function renderLists() {
-  // auto-hasher
   const dCost = droneCost();
   const canD = S.sats >= dCost;
   $("#autoGrid").innerHTML = `
@@ -553,9 +605,7 @@ function renderLists() {
       </button>`;
     }).join("")}</div>`;
 
-  // upgrades: show owned first (dim), then affordable-ish
-  const ups = UPGRADES.filter((u) => !up(u[0]) || up(u[0]))
-    .sort((a, b) => (up(a[0]) ? 1 : 0) - (up(b[0]) ? 1 : 0) || a[3] - b[3]);
+  const ups = UPGRADES.slice().sort((a, b) => (up(a[0]) ? 1 : 0) - (up(b[0]) ? 1 : 0) || a[3] - b[3]);
   $("#upGrid").innerHTML = ups.filter((u) => up(u[0]) || S.sats >= u[3] * 0.35 || S.lifetimeTotal > u[3] * 0.5)
     .slice(0, 8).map((u) => {
       const owned = up(u[0]);
@@ -565,21 +615,15 @@ function renderLists() {
         <i>${owned ? "INSTALLED" : fmt(u[3]) + " SATS"}</i></button>`;
     }).join("") || `<p class="locked">First upgrades appear at ~35 sats.</p>`;
 
-  // chaos
-  const unowned = CHAOS.filter((c) => !has(c[0]) || c[5]).sort((a, b) => chaosCost(a[0]) - chaosCost(b[0])).slice(0, 5);
-  const owned = CHAOS.filter((c) => has(c[0]) && !c[5]);
-  $("#stimGrid").innerHTML = S.ocean
-    ? `<p class="terminal-log">Shore leave. The aisle is quiet. <span>+4,000 sats collected.</span></p>`
-    : unowned.map((c) => {
-      const cost = chaosCost(c[0]);
-      return `<button type="button" class="stim-slot ${S.stim >= cost ? "ready" : ""} ${c[5] ? "rep" : ""}" data-chaos="${c[0]}">
-        <span><span class="stim-ico">${c[4]}</span><b>${c[1]}${c[5] && has(c[0]) ? ` ×${S.bounceN}` : ""}</b><small>${c[2]}</small></span>
-        <i>${fmt(cost)} STIM</i></button>`;
-    }).join("") + owned.map((c) =>
-      `<div class="stim-slot owned"><span><span class="stim-ico">${c[4]}</span><b>${c[1]}</b><small>${c[2]}</small></span><i>ACTIVE</i></div>`
-    ).join("");
+  const unowned = CHAOS.filter((c) => !has(c[0])).sort((a, b) => a[3] - b[3]).slice(0, 5);
+  const owned = CHAOS.filter((c) => has(c[0]));
+  $("#stimGrid").innerHTML = S.lastsat
+    ? `<p class="terminal-log">21,000,000 / 21,000,000 mined. The ledger is full. <span>The farm hums on, golden.</span></p>`
+    : unowned.map((c) => `<button type="button" class="stim-slot ${S.stim >= c[3] ? "ready" : ""}" data-chaos="${c[0]}">
+        <span><span class="stim-ico">${c[4]}</span><b>${c[1]}</b><small>${c[2]}</small></span>
+        <i>${fmt(c[3])} STIM</i></button>`).join("")
+      + owned.map((c) => `<div class="stim-slot owned"><span><span class="stim-ico">${c[4]}</span><b>${c[1]}</b><small>${c[2]}</small></span><i>ACTIVE</i></div>`).join("");
 
-  // machines
   $("#machines").innerHTML = MACHINES.map((m) => {
     const n = S.counts[m[0]] || 0;
     const cost = nextCost(m[3], n);
@@ -590,13 +634,11 @@ function renderLists() {
       <button type="button" class="${can ? "ready" : ""}" data-buy="${m[0]}">${can ? "DEPLOY" : "NEED SATS"} <span>${fmt(cost)}</span></button></div></article>`;
   }).join("");
 
-  // achievements
   $("#achGrid").innerHTML = ACHIEVEMENTS.map((a) => {
     const got = S.ach.includes(a[0]);
     return `<div class="ach ${got ? "got" : "locked"}"><span class="tick">${got ? "✔" : "·"}</span><b>${a[1]}</b><small>${a[2]}</small></div>`;
   }).join("");
 
-  // fork panel
   const need = 1e6;
   $("#forkStat").textContent = `FORKS: ${S.forks} · CURRENT BONUS ×${forkMult().toFixed(2)} · NEEDS ${fmt(need)} LIFETIME SATS`;
   const fb = $("#forkBtn");
@@ -606,12 +648,13 @@ function renderLists() {
 }
 
 /* ---------------- input ---------------- */
-document.addEventListener("pointerdown", (e) => { audio(); }, { once: true });
+document.addEventListener("pointerdown", () => audio(), { once: true });
+addEventListener("pointermove", (e) => { ptr.x = e.clientX; ptr.y = e.clientY; }, { passive: true });
 
 const strikeBtn = $("#strikeBtn");
 strikeBtn.addEventListener("pointerdown", (e) => {
   e.preventDefault();
-  strike(e.clientX, e.clientY, true);
+  manualStrike(e.clientX, e.clientY);
   strikeBtn.classList.add("smash");
   setTimeout(() => strikeBtn.classList.remove("smash"), 70);
 });
@@ -621,16 +664,14 @@ addEventListener("keydown", (e) => {
     const t = document.activeElement && document.activeElement.tagName;
     if (t === "BUTTON" && document.activeElement !== strikeBtn) return;
     e.preventDefault();
-    strike(innerWidth / 2, innerHeight * 0.42, true);
+    manualStrike(coreX, coreY);
     strikeBtn.classList.add("smash");
     setTimeout(() => strikeBtn.classList.remove("smash"), 70);
   }
 });
-
 document.addEventListener("click", (e) => {
   const t = e.target;
-  const drone = t.closest("[data-drone]");
-  if (drone) return buyDrone();
+  if (t.closest("[data-drone]")) return buyDrone();
   const dup = t.closest("[data-dup]");
   if (dup) return buyDroneUp(dup.getAttribute("data-dup"));
   const upEl = t.closest("[data-up]");
@@ -643,48 +684,65 @@ document.addEventListener("click", (e) => {
   if (t.closest("#muteBtn")) { S.muted = !S.muted; renderStats(); save(); }
 });
 
-/* ---------------- spam popups ---------------- */
-const SPAM_LINES = [
-  ["CONGRATULATIONS!!!", "You are the 1,000,000th hasher today. Claim your sats immediately.", "CLAIM SATS"],
-  ["mempool.exe has stopped", "A fee market formed inside your RAM. Someone should probably claim it.", "SWEEP MEMPOOL"],
-  ["Hot single nonces", "Lonely nonces in your area want to be hashed. Act now.", "HASH THEM"],
-  ["PRINTER NOT FOUND", "Print more sats? The printer is missing. Claim what's left.", "CLAIM REMAINDER"],
-  ["Your block wants attention", "It has been 0.4 seconds since your last block. Terrible. Claim compensation.", "CLAIM COMP"],
-];
-function spawnSpam() {
-  if (!has("spam") || S.ocean || document.querySelectorAll(".spam").length >= 3) return;
-  const [title, body, cta] = SPAM_LINES[Math.floor(Math.random() * SPAM_LINES.length)];
+/* ---------------- difficulty stamp ---------------- */
+function spawnStamp() {
+  if (!has("stamp") || S.lastsat) return;
+  const up = Math.random() < 0.55;
+  const pct = (0.4 + Math.random() * 4.8).toFixed(1);
+  const pay = Math.max(30, rigRate() * (up ? 6 : 3));
+  credit(pay);
+  if (up) S.stim += 2, S.stimEarned += 2;
   const el = document.createElement("div");
-  el.className = "spam";
-  el.style.left = 8 + Math.random() * 68 + "vw";
-  el.style.top = 12 + Math.random() * 55 + "vh";
-  el.style.rotate = (Math.random() * 6 - 3) + "deg";
-  let hex = ""; for (let i = 0; i < 42; i++) hex += HEX[Math.floor(Math.random() * 16)];
-  el.innerHTML = `<div class="spam-bar"><span>${title}</span><button type="button" data-spam-x="1">✕</button></div>
-    <div class="spam-body">${body}<div class="spam-hex">${hex}</div></div>
-    <button type="button" class="spam-claim" data-spam-claim="1">${cta}</button>`;
+  el.className = "stamp " + (up ? "up" : "down");
+  el.innerHTML = `DIFFICULTY ${up ? "▲" : "▼"} ${pct}%<small>${up ? `network pays the strong — +${fmt(pay)} sats` : `easier blocks ahead — +${fmt(pay)} sats`}</small>`;
+  el.style.left = 18 + Math.random() * 52 + "vw";
+  el.style.top = 16 + Math.random() * 34 + "vh";
   document.body.appendChild(el);
-  sfx.spam();
-  const pay = Math.max(40, rigRate() * 25);
-  el.querySelector("[data-spam-claim]").onclick = () => {
-    credit(pay); S.stim += 3; S.stimEarned += 3;
-    toast(`Spam swept: +${fmt(pay)} sats.`);
-    floater(parseFloat(el.style.left) / 100 * innerWidth, parseFloat(el.style.top) / 100 * innerHeight, `+${fmt(pay)}`, true);
-    sfx.claim(); el.remove(); save();
-  };
-  el.querySelector("[data-spam-x]").onclick = () => { el.remove(); };
-  setTimeout(() => el.isConnected && el.remove(), 18000);
+  setTimeout(() => el.remove(), 1500);
+  ribbonPush(`${hex6()} +${fmt(pay)}`);
+  if (has("rumble")) shake(0.22);
+  sfx.stamp();
 }
 
-/* ---------------- hydraulic press ---------------- */
-function spawnSmash() {
-  if (!has("smash") || S.ocean) return;
-  const pay = Math.max(30, rigRate() * 2.5);
-  credit(pay); S.stim += 2; S.stimEarned += 2;
-  const x = innerWidth * (0.2 + Math.random() * 0.6);
-  juice("smash", x, innerHeight * 0.4, `SMASH +${fmt(pay)}`);
-  trauma = Math.min(1, trauma + 0.6);
-  sfx.smash();
+/* ---------------- ransomware windows ---------------- */
+function spawnRansom() {
+  if (!has("ransom") || S.lastsat || document.querySelectorAll(".ransom").length >= 2) return;
+  const [title, body, cta] = RANSOMWARE[Math.floor(Math.random() * RANSOMWARE.length)];
+  const el = document.createElement("div");
+  el.className = "ransom";
+  el.style.left = 10 + Math.random() * 66 + "vw";
+  el.style.top = 14 + Math.random() * 52 + "vh";
+  el.style.rotate = (Math.random() * 5 - 2.5) + "deg";
+  el.innerHTML = `<div class="ransom-bar"><span>${title}</span><button type="button" data-ransom-x="1">✕</button></div>
+    <div class="ransom-body">${body}<pre>${hex6()}${hex6()}…${hex6()}</pre></div>
+    <button type="button" class="ransom-claim" data-ransom-claim="1">${cta}</button>`;
+  document.body.appendChild(el);
+  sfx.ransom();
+  const pay = Math.max(50, rigRate() * 22);
+  el.querySelector("[data-ransom-claim]").onclick = () => {
+    credit(pay); S.stim += 3; S.stimEarned += 3;
+    toast(`Wallet swept: their ${fmt(pay)} sats are your sats now.`);
+    floater(el.getBoundingClientRect().left + 80, el.getBoundingClientRect().top + 60, `+${fmt(pay)}`, true);
+    ribbonPush(`${hex6()} +${fmt(pay)}`);
+    if (has("rumble")) shake(0.2);
+    sfx.claim(); el.remove(); save();
+  };
+  el.querySelector("[data-ransom-x]").onclick = () => el.remove();
+  setTimeout(() => el.isConnected && el.remove(), 16000);
+}
+
+/* ---------------- whale alerts ---------------- */
+function spawnWhale() {
+  if (!has("whale") || S.lastsat || document.querySelector(".whale")) return;
+  const pay = Math.max(20, rigRate() * 6);
+  credit(pay); S.stim += 3; S.stimEarned += 3;
+  const el = document.createElement("div");
+  el.className = "whale";
+  el.textContent = `${WHALES[Math.floor(Math.random() * WHALES.length)]} +${fmt(pay)} sats`;
+  document.body.appendChild(el);
+  ribbonPush(`${hex6()} +${fmt(pay)}`);
+  sfx.whale();
+  setTimeout(() => el.remove(), 6300);
 }
 
 /* ---------------- orbs ---------------- */
@@ -723,23 +781,17 @@ function checkAch() {
   }
 }
 
-/* ---------------- news + subliminal ---------------- */
+/* ---------------- news ---------------- */
 function rotateNews() {
   S.newsIdx = (S.newsIdx + 1) % NEWS.length;
   const el = $("#news");
   el.classList.remove("flash");
   el.textContent = NEWS[S.newsIdx];
 }
-function subliminal() {
-  if (!has("subliminal") || S.ocean) return;
-  const el = $("#news");
-  el.classList.add("flash");
-  el.textContent = SUBS[Math.floor(Math.random() * SUBS.length)];
-  setTimeout(rotateNews, 420);
-}
 
 /* ---------------- main loop ---------------- */
-let last = performance.now(), acc = 0, saveAcc = 0, newsAcc = 0, renderAcc = 0;
+let last = performance.now(), acc = 0, saveAcc = 0, newsAcc = 0, renderAcc = 0, scrambleAcc = 0;
+const droneVis = { t: 0, acc: 0, pay: 0 };
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { hiddenAt = Date.now(); save(); }
@@ -756,7 +808,6 @@ document.addEventListener("visibilitychange", () => {
 });
 addEventListener("pagehide", save);
 
-// offline earnings on load
 (function offline() {
   const secs = Math.min((Date.now() - (S.lastSave || Date.now())) / 1000, 28800);
   if (secs > 120 && rigRate() > 0) {
@@ -767,96 +818,112 @@ addEventListener("pagehide", save);
 })();
 
 function loop(now) {
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const rawDt = now - last;
+  const dt = Math.min(0.1, rawDt / 1000);
   last = now;
+  emaDt = emaDt * 0.95 + rawDt * 0.05;
+  Q = emaDt > 26 ? 0.55 : emaDt < 18 ? 1 : Q; // adaptive quality
   S.t += dt;
   S.heat = Math.max(0, S.heat - dt * 11);
 
-  // passive income
   const rr = rigRate();
   if (rr) credit(rr * dt);
 
-  // drones auto-strike
+  // drone strikes: exact economy, batched visuals
   const ar = autoRate();
   if (ar) {
     S.autoAcc += ar * dt;
-    let guard = 0;
-    while (S.autoAcc >= 1 && guard < 40) {
-      S.autoAcc -= 1; guard++;
-      const bx = strikeBtn.getBoundingClientRect();
-      strike(bx.left + bx.width / 2 + (Math.random() - 0.5) * 120, bx.top + bx.height / 2 + (Math.random() - 0.5) * 100, false);
+    let n = Math.floor(S.autoAcc);
+    if (n > 60) { n = 60; S.autoAcc = 0; } else S.autoAcc -= n;
+    let gained = 0;
+    for (let i = 0; i < n; i++) gained += strikeEconomy(false).pay;
+    droneVis.acc += n; droneVis.pay += gained;
+  }
+  droneVis.t += dt;
+  if (droneVis.t >= 0.22) {
+    if (droneVis.acc > 0) {
+      droneJuice(droneVis.acc, droneVis.pay);
+      ribbonPush(`${hex6()} +${fmt(droneVis.pay)}`);
     }
+    droneVis.t = 0; droneVis.acc = 0; droneVis.pay = 0;
   }
 
-  // events
-  S.nextOrb -= dt;
-  if (S.nextOrb <= 0) { spawnOrb(); S.nextOrb = 14 + Math.random() * 14; }
-  S.smashAt -= dt;
-  if (S.smashAt <= 0) { spawnSmash(); S.smashAt = 3.4; }
-  S.spamAt -= dt;
-  if (S.spamAt <= 0) { spawnSpam(); S.spamAt = 22 + Math.random() * 18; }
-  S.subAt -= dt;
-  if (S.subAt <= 0) { subliminal(); S.subAt = 45 + Math.random() * 30; }
-  newsAcc += dt;
-  if (newsAcc > 8) { newsAcc = 0; rotateNews(); }
+  // timers
+  S.nextOrb -= dt; if (S.nextOrb <= 0) { spawnOrb(); S.nextOrb = 14 + Math.random() * 14; }
+  S.stampAt -= dt; if (S.stampAt <= 0) { spawnStamp(); S.stampAt = 7.5; }
+  S.ransomAt -= dt; if (S.ransomAt <= 0) { spawnRansom(); S.ransomAt = 26 + Math.random() * 20; }
+  S.whaleAt -= dt; if (S.whaleAt <= 0) { spawnWhale(); S.whaleAt = 42 + Math.random() * 30; }
+  newsAcc += dt; if (newsAcc > 8) { newsAcc = 0; rotateNews(); }
 
-  // housekeeping
-  acc += dt; saveAcc += dt; renderAcc += dt;
-  if (acc > 1) { acc = 0; checkAch(); }
-  if (saveAcc > 6) { saveAcc = 0; save(); }
-  if (renderAcc > 0.15) { renderAcc = 0; renderStats(); }
+  // housekeeping (staggered)
+  acc += dt; if (acc > 1) { acc = 0; checkAch(); }
+  saveAcc += dt; if (saveAcc > 6) { saveAcc = 0; save(); }
+  renderAcc += dt; if (renderAcc > 0.18) { renderAcc = 0; renderStats(); }
+  scrambleAcc += dt;
+  if (scrambleAcc > 0.13) { scrambleAcc = 0; scramble(false); }
 
   drawCanvas(dt, now);
   requestAnimationFrame(loop);
 }
 
 /* ---------------- canvas ---------------- */
-for (let i = 0; i < 150; i++) stars.push({ x: Math.random(), y: Math.random(), z: 0.2 + Math.random() * 0.8, tw: Math.random() * Math.PI * 2 });
-
 function drawCanvas(dt, now) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const ocean = S.ocean;
+  const calm = S.lastsat;
   const rm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // starfield (deepest layer)
-  if (has("starfield")) {
-    for (const st of stars) {
-      st.y += st.z * dt * (ocean ? 0.01 : 0.035);
-      if (st.y > 1) { st.y = 0; st.x = Math.random(); }
-      const tw = 0.35 + 0.3 * Math.sin(now / 700 + st.tw);
-      ctx.globalAlpha = (ocean ? 0.25 : 0.7) * tw;
-      ctx.fillStyle = ocean ? "#9fd7e8" : "#cfe8ff";
-      const s = st.z * 2.2;
-      ctx.fillRect(st.x * canvas.width, st.y * canvas.height, s, s);
-    }
-    ctx.globalAlpha = 1;
+  // cache the strike core position once per frame (swarm orbits it)
+  if (now - coreAt > 250 || !coreAt) {
+    coreAt = now;
+    const b = strikeBtn.getBoundingClientRect();
+    coreX = b.left + b.width / 2; coreY = b.top + b.height / 2;
   }
 
-  // nonce rain
-  if (has("rain") && !ocean) {
-    ctx.font = "12px IBM Plex Mono, monospace";
-    for (let i = 0; i < 42; i++) {
-      ctx.fillStyle = i % 4 === 0 ? "rgb(255 106 26 / 0.3)" : "rgb(200 242 74 / 0.26)";
-      ctx.fillText(HEX[(i + Math.floor(now / 400)) % 16], (i * 97 + (now * 0.03) % 97) % canvas.width, (now * (0.14 + (i % 5) * 0.03) + i * 61) % canvas.height);
+  // hash cascade
+  if (has("cascade") && !calm) {
+    const cols = Math.round((Q < 1 ? 14 : 24) * (canvas.width / 1440 + 0.4));
+    const colW = canvas.width / cols;
+    for (let i = 0; i < cols; i++) {
+      const speed = 90 + (i % 5) * 40;
+      const y = (now * 0.001 * speed + i * 197) % (canvas.height + 120) - 60;
+      const x = i * colW + 14;
+      ctx.font = fontStr(12, true);
+      ctx.fillStyle = "rgb(200 242 74 / 0.3)";
+      ctx.fillText(HEX[(i + Math.floor(now / 300)) % 16], x, y);
+      ctx.fillStyle = "rgb(200 242 74 / 0.14)";
+      ctx.fillText(HEX[(i * 3) % 16], x, y - 18);
     }
   }
 
-  // bouncing blocks
-  const wantBalls = ocean ? 0 : (has("bounce") ? S.bounceN : 0);
-  while (balls.length < wantBalls) balls.push({ x: 80 + Math.random() * (canvas.width - 160), y: 80 + Math.random() * (canvas.height - 160), vx: (Math.random() < 0.5 ? -1 : 1) * 170, vy: (Math.random() < 0.5 ? -1 : 1) * 130 });
-  while (balls.length > wantBalls) balls.pop();
-  ctx.font = "30px Space Grotesk, sans-serif";
-  for (const b of balls) {
-    b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.x < 26 || b.x > canvas.width - 26) { b.vx *= -1; credit(2 + forksFlat()); S.stim += 0.4; S.stimEarned += 0.4; }
-    if (b.y < 26 || b.y > canvas.height - 26) { b.vy *= -1; credit(2 + forksFlat()); S.stim += 0.4; S.stimEarned += 0.4; }
-    ctx.globalAlpha = 0.92;
-    ctx.fillStyle = "#ff6a1a";
-    ctx.shadowColor = "rgb(255 106 26 / 0.8)"; ctx.shadowBlur = 18;
-    ctx.fillText("₿", b.x - 12, b.y + 11);
-    ctx.shadowBlur = 0;
+  // chain constellation
+  if (chainNodes.length) {
+    ctx.lineWidth = 1;
+    for (let i = 0; i < chainNodes.length; i++) {
+      const n = chainNodes[i];
+      if (i > 0) {
+        const p = chainNodes[i - 1];
+        const a = Math.min(1, (S.t - n.born) / 0.6);
+        ctx.strokeStyle = `rgb(200 242 74 / ${0.14 * a})`;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(n.x, n.y); ctx.stroke();
+      }
+      const tw = 0.5 + 0.5 * Math.sin(now / 600 + n.seed);
+      const newest = i === chainNodes.length - 1;
+      ctx.fillStyle = newest ? `rgb(255 200 80 / ${0.7 + 0.3 * tw})` : `rgb(207 232 255 / ${0.35 * tw + 0.15})`;
+      const s = newest ? 5 : 3;
+      ctx.fillRect(n.x - s / 2, n.y - s / 2, s, s);
+    }
   }
-  ctx.globalAlpha = 1;
+
+  // rig swarm
+  if (has("swarm") && S.drones > 0 && !calm) {
+    const n = Math.min(S.drones, Q < 1 ? 12 : 24);
+    for (let i = 0; i < n; i++) {
+      const a = S.t * (0.7 + droneSpeed() * 0.25) + (i / n) * Math.PI * 2;
+      const r = 150 + (i % 5) * 16 + Math.sin(S.t * 1.3 + i) * 7;
+      const x = coreX + Math.cos(a) * r, y = coreY + Math.sin(a) * r * 0.55;
+      ctx.drawImage(droneSprite, x - 11, y - 11);
+    }
+  }
 
   // ripples
   for (let i = ripples.length - 1; i >= 0; i--) {
@@ -867,32 +934,53 @@ function drawCanvas(dt, now) {
     ctx.strokeStyle = "#3ec8e8"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
   }
+  ctx.globalAlpha = 1;
+
+  // ledger ribbon (canvas-drawn, bottom strip)
+  if (ribbon.length) {
+    const h = 24;
+    ctx.fillStyle = "rgb(8 9 10 / 0.6)";
+    ctx.fillRect(0, canvas.height - h, canvas.width, h);
+    ctx.font = fontStr(10, true);
+    for (let i = ribbon.length - 1; i >= 0; i--) {
+      const e = ribbon[i];
+      e.x -= 70 * dt;
+      if (e.x < -260) { ribbon.splice(i, 1); continue; }
+      ctx.fillStyle = "rgb(62 200 232 / 0.75)";
+      ctx.fillText(e.text, e.x, canvas.height - 8);
+    }
+  }
 
   // particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= dt / 0.75; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 130 * dt;
-    if (p.life <= 0 || particles.length > 340) { particles.splice(i, 1); continue; }
+    if (p.life <= 0) {
+      const moved = particles.pop();
+      if (i < particles.length) particles[i] = moved; // swap-pop while iterating backward
+      continue;
+    }
     ctx.globalAlpha = Math.max(0, p.life);
     ctx.fillStyle = p.c;
-    ctx.font = `${p.sz}px ${p.mono ? "IBM Plex Mono" : "Space Grotesk"}, monospace`;
+    ctx.font = fontStr(p.sz, p.mono);
     ctx.fillText(p.text, p.x, p.y);
   }
   ctx.globalAlpha = 1;
 
-  // screen shake
-  trauma = Math.max(0, trauma - dt * 1.7);
+  // screen shake: block-finds only, capped, fast decay
+  trauma = Math.max(0, trauma - dt * 2.8);
   const sh = trauma * trauma;
   const root = $("#forge");
   if (root && !rm) {
-    root.style.transform = sh > 0.005 ? `translate(${(Math.random() * 2 - 1) * sh * 13}px, ${(Math.random() * 2 - 1) * sh * 13}px)` : "";
+    const tx = sh > 0.004 ? `translate(${(Math.random() * 2 - 1) * sh * 9}px, ${(Math.random() * 2 - 1) * sh * 9}px)` : "";
+    if (root.__shake !== tx) { root.style.transform = tx; root.__shake = tx; }
   }
 }
-function forksFlat() { return S.forks * 2; }
 
 /* ---------------- boot ---------------- */
 window.__HF__ = S; // debug/testing handle
+window.__HFD__ = { get trauma() { return trauma; } };
 renderStats();
 renderLists();
-scrambleHash(false);
+scrambleCrit();
 requestAnimationFrame(loop);
